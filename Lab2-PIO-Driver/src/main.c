@@ -148,23 +148,23 @@ const uint32_t ul_default_level,
 const uint32_t ul_multidrive_enable,
 const uint32_t ul_pull_up_enable)
 {
-	p_pio->PIO_PER=ul_mask; 
-	p_pio->PIO_OER=ul_mask;
-	
-	if (ul_default_level){
+	p_pio->PIO_PER=ul_mask; //1
+	p_pio->PIO_OER=ul_mask; //2
+	//3
+	if (ul_default_level){ 
 		_pio_set(p_pio, ul_mask);
 	} 
 	else{
 		_pio_clear(p_pio, ul_mask);
 	}
-
+	//4
 	if (ul_multidrive_enable){
 		p_pio -> PIO_MDER = ul_mask;
 	} 
 	else{
 		p_pio -> PIO_MDDR = ul_mask;
 	}
-	
+	//5
 	_pio_pull_up(p_pio, ul_mask, ul_pull_up_enable);
 
 }
