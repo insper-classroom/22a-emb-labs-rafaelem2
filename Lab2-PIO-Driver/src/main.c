@@ -190,10 +190,10 @@ void init(void){
 	 pmc_enable_periph_clk(BUT3_PIO_ID);
 	 
 	 //Inicializa PC8 como entrada
-	 pio_set_output(LED_PIO, LED_PIO_IDX_MASK, 1,0,0);
-	 pio_set_output(LED1_PIO, LED1_PIO_IDX_MASK, 1,0,0);
-	 pio_set_output(LED2_PIO, LED2_PIO_IDX_MASK, 1,0,0);
-	 pio_set_output(LED3_PIO, LED3_PIO_IDX_MASK, 1,0,0);
+	 _pio_set_output(LED_PIO, LED_PIO_IDX_MASK, 1,0,0);
+	 _pio_set_output(LED1_PIO, LED1_PIO_IDX_MASK, 1,0,0);
+	 _pio_set_output(LED2_PIO, LED2_PIO_IDX_MASK, 1,0,0);
+	 _pio_set_output(LED3_PIO, LED3_PIO_IDX_MASK, 1,0,0);
 	 
 	
 	// Inicializa PIO do botao
