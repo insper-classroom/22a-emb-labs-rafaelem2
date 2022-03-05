@@ -98,6 +98,8 @@ void _pio_set_output(Pio *p_pio, const uint32_t ul_mask,
 const uint32_t ul_default_level,
 const uint32_t ul_multidrive_enable,
 const uint32_t ul_pull_up_enable);
+uint32_t _pio_get(Pio *p_pio, const pio_type_t ul_type,
+const uint32_t ul_mask);
 
 
 /************************************************************************/
@@ -168,6 +170,24 @@ const uint32_t ul_pull_up_enable)
 	_pio_pull_up(p_pio, ul_mask, ul_pull_up_enable);
 
 }
+
+uint32_t _pio_get(Pio *p_pio, const pio_type_t ul_type,
+const uint32_t ul_mask)
+{
+	uint32_t ul_reg;
+
+	if ((ul_type == PIO_OUTPUT_0) || (ul_type == PIO_OUTPUT_1)) {
+		ul_reg = p_pio->PIO_ODSR;
+		} else {
+		ul_reg = p_pio->PIO_PDSR;
+	}
+
+	if ((ul_reg & ul_mask) == 0) {
+		return 0;
+		} else {
+		return 1;
+	}
+}
 /************************************************************************/
 
 // Função de inicialização do uC
@@ -216,7 +236,7 @@ int main(void) {
 	// aplicacoes embarcadas não devem sair do while(1).
 	while (1)
 	{
-		if(!pio_get(BUT_PIO, PIO_INPUT, BUT_PIO_IDX_MASK)) {
+		if(!_pio_get(BUT_PIO, PIO_INPUT, BUT_PIO_IDX_MASK)) {
 		// Pisca LED
 		for (int i=0; i<5; i++) {
 			_pio_clear(LED_PIO, LED_PIO_IDX_MASK); 
@@ -228,7 +248,7 @@ int main(void) {
 			
 			
 		}
-		}if(!pio_get(BUT1_PIO, PIO_INPUT, BUT1_PIO_IDX_MASK)) {
+		}if(!_pio_get(BUT1_PIO, PIO_INPUT, BUT1_PIO_IDX_MASK)) {
 		// Pisca LED
 		for (int i=0; i<5; i++) {
 			_pio_clear(LED1_PIO, LED1_PIO_IDX_MASK); 
@@ -240,7 +260,7 @@ int main(void) {
 			
 			
 		}
-		}if(!pio_get(BUT2_PIO, PIO_INPUT, BUT2_PIO_IDX_MASK)) {
+		}if(!_pio_get(BUT2_PIO, PIO_INPUT, BUT2_PIO_IDX_MASK)) {
 			// Pisca LED
 			for (int i=0; i<5; i++) {
 			_pio_clear(LED2_PIO, LED2_PIO_IDX_MASK);
@@ -252,7 +272,7 @@ int main(void) {
 	
 	
 		}
-	} if(!pio_get(BUT3_PIO, PIO_INPUT, BUT3_PIO_IDX_MASK)) {
+	} if(!_pio_get(BUT3_PIO, PIO_INPUT, BUT3_PIO_IDX_MASK)) {
 		// Pisca LED
 		for (int i=0; i<5; i++) {
 		_pio_clear(LED3_PIO, LED3_PIO_IDX_MASK);
