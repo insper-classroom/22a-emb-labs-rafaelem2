@@ -46,10 +46,13 @@ extern void xPortSysTickHandler(void);
 
 /** Semaforo a ser usado pela task led */
 SemaphoreHandle_t xSemaphoreBut;
+SemaphoreHandle_t xSemaphoreBut2;
 
 /** Queue for msg log send data */
 QueueHandle_t xQueueLedFreq;
+QueueHandle_t xQueueBut;
 
+int delay = 2000;
 /************************************************************************/
 /* prototypes local                                                     */
 /************************************************************************/
@@ -106,11 +109,16 @@ extern void vApplicationMallocFailedHook(void) {
 void but_callback(void) {
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
   xSemaphoreGiveFromISR(xSemaphoreBut, &xHigherPriorityTaskWoken);
+  
+  int delay = 100;
+  xQueueSendFromISR(xQueueBut, (void *)&delay,  &xHigherPriorityTaskWoken);
 }
 
 void but2_callback(void) {
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	xSemaphoreGiveFromISR(xSemaphoreBut, &xHigherPriorityTaskWoken);
+	int delay = -100;
+	xQueueSendFromISR(xQueueBut, (void *)&delay,  &xHigherPriorityTaskWoken);
 }
 
 /************************************************************************/
@@ -149,48 +157,23 @@ static void task_but(void *pvParameters) {
   /* iniciliza botao */
   BUT_init();
 
-  uint32_t delayTicks = 2000;
+  int32_t delayTicks = 0;
+  int delay = 1000;
 
   for (;;) {
-    /* aguarda por tempo inderteminado até a liberacao do semaforo */
-    if (xSemaphoreTake(xSemaphoreBut, 1000)) {
-      /* atualiza frequencia */
-      delayTicks -= 100;
+	  /* aguarda por tempo inderteminado até a liberacao do semaforo */
+	  if (xQueueReceive(xQueueBut, &delayTicks, (TickType_t)0)) {
 
-      /* envia nova frequencia para a task_led */
-      xQueueSend(xQueueLedFreq, (void *)&delayTicks, 10);
-
-      /* garante range da freq. */
-      if (delayTicks == 100) {
-        delayTicks = 900;
-      }
-    }
+		  delay = delay + delayTicks;
+		  /* envia nova frequencia para a task_led */
+		  xQueueSend(xQueueLedFreq, (void *)&delayTicks, 10);
+	  }
+	  
+	  
+	  
   }
 }
 
-static void task2_but(void *pvParameters) {
-
-	/* iniciliza botao */
-	BUT_init();
-
-	uint32_t delayTicks = 2000;
-
-	for (;;) {
-		/* aguarda por tempo inderteminado até a liberacao do semaforo */
-		if (xSemaphoreTake(xSemaphoreBut, 1000)) {
-			/* atualiza frequencia */
-			delayTicks += 100;
-
-			/* envia nova frequencia para a task_led */
-			xQueueSend(xQueueLedFreq, (void *)&delayTicks, 10);
-
-			/* garante range da freq. */
-			if (delayTicks == 100) {
-				delayTicks = 900;
-			}
-		}
-	}
-}
 
 /************************************************************************/
 /* funcoes                                                              */
@@ -242,19 +225,18 @@ static void BUT_init(void) {
   NVIC_EnableIRQ(BUT_PIO_ID);
   NVIC_SetPriority(BUT_PIO_ID, 4);
   
-    pio_configure(BUT2_PIO, PIO_INPUT, BUT2_PIO_PIN_MASK,
+  pio_configure(BUT2_PIO, PIO_INPUT, BUT2_PIO_PIN_MASK,
     PIO_PULLUP | PIO_DEBOUNCE);
-    pio_set_debounce_filter(BUT2_PIO, BUT2_PIO_PIN_MASK, 60);
-    pio_enable_interrupt(BUT2_PIO, BUT2_PIO_PIN_MASK);
-    pio_handler_set(BUT2_PIO, BUT2_PIO_ID, BUT2_PIO_PIN_MASK, PIO_IT_FALL_EDGE,
+  pio_set_debounce_filter(BUT2_PIO, BUT2_PIO_PIN_MASK, 60);
+  pio_enable_interrupt(BUT2_PIO, BUT2_PIO_PIN_MASK);
+  pio_handler_set(BUT2_PIO, BUT2_PIO_ID, BUT2_PIO_PIN_MASK, PIO_IT_FALL_EDGE,
     but2_callback);
 
-    pio_get_interrupt_status(BUT2_PIO);
+  pio_get_interrupt_status(BUT2_PIO);
     
-    /* configura prioridae */
-    NVIC_EnableIRQ(BUT2_PIO_ID);
-    NVIC_SetPriority(BUT2_PIO_ID, 4);
-
+  /* configura prioridae */
+  NVIC_EnableIRQ(BUT2_PIO_ID);
+  NVIC_SetPriority(BUT2_PIO_ID, 4);
 
 }
 /************************************************************************/
@@ -267,48 +249,50 @@ static void BUT_init(void) {
  *  \return Unused (ANSI-C compatibility).
  */
 int main(void) {
-  /* Initialize the SAM system */
-  sysclk_init();
-  board_init();
-  configure_console();
-   
-  /* Attempt to create a semaphore. */
-  xSemaphoreBut = xSemaphoreCreateBinary();
-  if (xSemaphoreBut == NULL)
-    printf("falha em criar o semaforo \n");
+	/* Initialize the SAM system */
+	sysclk_init();
+	board_init();
+	configure_console();
 
-  /* cria queue com 32 "espacos" */
-  /* cada espaço possui o tamanho de um inteiro*/
-  xQueueLedFreq = xQueueCreate(32, sizeof(uint32_t));
-  if (xQueueLedFreq == NULL)
-    printf("falha em criar a queue \n");
+	/* Attempt to create a semaphore. */
+	xSemaphoreBut = xSemaphoreCreateBinary();
+	if (xSemaphoreBut == NULL)
+	printf("falha em criar o semaforo do botão da placa \n");
+	
+	xSemaphoreBut2 = xSemaphoreCreateBinary();
+	if (xSemaphoreBut2 == NULL)
+	printf("falha em criar o semaforo do botão 1 da placa \n");
 
-  /* Create task to make led blink */
-  if (xTaskCreate(task_led, "Led", TASK_LED_STACK_SIZE, NULL,
-                  TASK_LED_STACK_PRIORITY, NULL) != pdPASS) {
-    printf("Failed to create test led task\r\n");
-  }
+	/* cria queue com 32 "espacos" */
+	/* cada espaço possui o tamanho de um inteiro*/
+	xQueueLedFreq = xQueueCreate(32, sizeof(uint32_t));
+	if (xQueueLedFreq == NULL)
+	printf("falha em criar a queue \n");
+	
+	xQueueBut = xQueueCreate(32, sizeof(uint32_t));
+	if (xQueueBut == NULL)
+	printf("falha em criar a queue \n");
 
-  /* Create task to monitor processor activity */
-    /* Create task to monitor processor activity */
-  if (xTaskCreate(task_but, "BUT", TASK_BUT_STACK_SIZE, NULL,
-                  TASK_BUT_STACK_PRIORITY, NULL) != pdPASS) {
-    printf("Failed to create UartTx task\r\n");
-  }
-  
-  if (xTaskCreate(task2_but, "BUT", TASK_BUT_STACK_SIZE, NULL,
-                  TASK_BUT_STACK_PRIORITY, NULL) != pdPASS) {
-    printf("Failed to create UartTx task\r\n");
-  }
+	/* Create task to make led blink */
+	if (xTaskCreate(task_led, "Led", TASK_LED_STACK_SIZE, NULL,
+	TASK_LED_STACK_PRIORITY, NULL) != pdPASS) {
+		printf("Failed to create test led task\r\n");
+	}
 
-  /* Start the scheduler. */
-  vTaskStartScheduler();
+	/* Create task to monitor processor activity */
+	if (xTaskCreate(task_but, "BUT", TASK_BUT_STACK_SIZE, NULL,
+	TASK_BUT_STACK_PRIORITY, NULL) != pdPASS) {
+		printf("Failed to create UartTx task\r\n");
+	}
 
-  /* RTOS não deve chegar aqui !! */
-  while (1) {
-  }
+	/* Start the scheduler. */
+	vTaskStartScheduler();
 
-  /* Will only get here if there was insufficient memory to create the idle
-   * task. */
-  return 0;
+	/* RTOS não deve chegar aqui !! */
+	while (1) {
+	}
+
+	/* Will only get here if there was insufficient memory to create the idle
+	* task. */
+	return 0;
 }
